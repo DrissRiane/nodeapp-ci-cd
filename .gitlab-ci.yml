@@ -1,0 +1,38 @@
+image: docker:24.0.5
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+variables :
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  DOCKER_REGISTRY: 192.168.148.118:5000
+  DOCKER_IMAGE: $DOCKER_REGISTRY/myapp:$CI_COMMIT_SHA
+services:
+  - name: docker:24.0.5-dind
+    command:
+      - "--insecure-registry"
+      - "192.168.148.118:5000"
+      
+stages:
+  - build
+  - test
+  - deploy
+build_job:
+  stage: build
+  script:
+    - docker build -t $DOCKER_IMAGE .
+    - docker push  $DOCKER_IMAGE
+before_script:
+  - chmod +x node_modules/.bin/mocha
+test_job:
+  stage: test
+  script:
+    - docker run --rm $DOCKER_IMAGE npm test
+
+deploy_to_Docker:
+  stage: deploy
+  script:
+    - docker pull $DOCKER_IMAGE
+    - docker run -d -p 3000:3000 $DOCKER_IMAGE
+
